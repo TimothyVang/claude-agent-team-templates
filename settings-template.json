@@ -1,0 +1,100 @@
+{
+  "// INSTRUCTIONS": "Copy relevant sections into your .claude/settings.json or ~/.claude/settings.json",
+  "// ENABLE_TEAMS": "Set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in env or settings",
+  "// EXIT_CODES": "Hook exit codes: 0=success, 1=hard block (agent stops), 2=feedback+continue (agent gets message and keeps working)",
+  "// DELEGATE_MODE": "For autonomous teammates, configure 'delegate' permission mode on the team lead. Teammates inherit permissions from the lead's allow-list below.",
+
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/session-start-setup.sh"
+          }
+        ]
+      }
+    ],
+
+    "PostToolUse": [
+      {
+        "matcher": {
+          "tool_name": "Edit|Write"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/post-edit-lint.sh"
+          }
+        ]
+      },
+      {
+        "// NOTE": "Observability: logs all tool uses to .claude/agent-team-log.jsonl",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/observability-hook.sh"
+          }
+        ]
+      }
+    ],
+
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/verify-task.sh",
+            "// EXIT_CODE_2": "First failure returns exit 2 (feedback to agent). Second consecutive failure returns exit 1 (hard block)."
+          },
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/error-recovery-hook.sh",
+            "// NOTE": "Multi-tier recovery: retry with backoff -> undo-and-retry -> human escalation. Runs if verify-task fails."
+          },
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/observability-hook.sh"
+          }
+        ]
+      }
+    ],
+
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/check-remaining-work.sh",
+            "// NOTE": "Includes loop detection: warns if same TODOs persist across 3+ consecutive idle checks."
+          },
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/observability-hook.sh"
+          }
+        ]
+      }
+    ]
+  },
+
+  "permissions": {
+    "// NOTE": "Pre-approve common operations to reduce permission prompts during team work",
+    "allow": [
+      "Bash(npm run lint)",
+      "Bash(npm run test)",
+      "Bash(npm run build)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit*)",
+      "Read(*)",
+      "Glob(*)",
+      "Grep(*)"
+    ]
+  }
+}
