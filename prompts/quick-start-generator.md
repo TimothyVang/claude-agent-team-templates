@@ -37,6 +37,7 @@ File ownership:
 | F: Incident Response | `incident-response.md` | Production debugging with observer | 4 |
 | G: Migration | `migration.md` | Library/framework upgrades (canary pattern) | 5 |
 | H: Documentation | `documentation.md` | Parallel doc generation with review | 4 |
+| I: Plan-First | `plan-first.md` | High-stakes changes requiring plan approval before code | 3-4 |
 
 ---
 

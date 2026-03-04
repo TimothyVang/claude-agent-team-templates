@@ -1,0 +1,17 @@
+# Claude Code runtime state
+.claude/
+*.jsonl
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor state
+.vscode/
+*.swp
+*~
+
+# Temp files
+*.tmp
+*.bak

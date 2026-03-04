@@ -119,7 +119,6 @@ All investigators should:
 - Challenge each other's theories with evidence from the code
 - Converge on the most likely root cause
 
-After consensus, investigator-2 should be promoted to fix the race condition
-(or the winning hypothesis owner implements the fix).
+After consensus, the investigator with the winning hypothesis implements the fix.
 Use model: haiku for investigators to save tokens on the research phase.
 ```

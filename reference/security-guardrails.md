@@ -89,7 +89,7 @@ Warn on requests to internal or sensitive endpoints.
 
 ## Implementation Example
 
-A minimal security check script (`scripts/security-check.sh`):
+A minimal security check script (`./agent-team-templates/scripts/security-check.sh`):
 
 ```bash
 #!/bin/bash

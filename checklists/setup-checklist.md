@@ -53,17 +53,26 @@
   - `PostToolUse` - Lint on edit
   - `TaskCompleted` - Verify deliverable
   - `TeammateIdle` - Check remaining work
+  - `PreCompact` - Save git/task state before auto-compaction (`precompact-save-state.sh`)
+  - `Stop` - Prompt-type hook verifying all acceptance criteria before agent stops
+  - `PreToolUse` - Security guardrail blocking dangerous commands (`security-check.sh`)
 
 - [ ] **Configure error recovery**: Set up multi-tier recovery hooks. See `scripts/error-recovery-hook.sh` and `reference/error-recovery.md`.
+
+- [ ] **Review failure modes**: Scan `checklists/failure-modes-checklist.md` for the 14 most common multi-agent failure modes and confirm your design mitigates them.
 
 ## Team Design
 
 - [ ] **Choose team template**: Pick from `prompts/` directory.
-  - `feature-dev.md` - Full-stack features
-  - `bug-hunt.md` - Bug investigation
-  - `code-review.md` - Code audit
-  - `research.md` - Exploration
-  - `refactor.md` - Code migration
+  - `feature-dev.md` - Full-stack features (Template A)
+  - `bug-hunt.md` - Bug investigation (Template B)
+  - `code-review.md` - Code audit (Template C)
+  - `research.md` - Exploration (Template D)
+  - `refactor.md` - Code migration (Template E)
+  - `incident-response.md` - Production debugging with observer (Template F)
+  - `migration.md` - Library/framework migration with canary (Template G)
+  - `documentation.md` - Parallel doc generation with review (Template H)
+  - `plan-first.md` - High-stakes changes requiring plan approval (Template I)
 
 - [ ] **Require plan approval**: For architects/designers before implementation begins.
 

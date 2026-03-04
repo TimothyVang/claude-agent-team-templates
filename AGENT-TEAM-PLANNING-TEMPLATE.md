@@ -230,6 +230,11 @@ See `scripts/` directory for hook implementations:
 - `session-start-setup.sh` - Runs on `SessionStart` for environment setup
 - `error-recovery-hook.sh` - Multi-tier failure recovery
 - `observability-hook.sh` - Logs agent actions for monitoring
+- `precompact-save-state.sh` - Runs on `PreCompact` to snapshot git/task state before auto-compaction
+- `stop-verification-hook.sh` - Reference script documenting the Stop prompt-type hook pattern (not wired directly; see `settings-template.json` Stop hook)
+- `evaluate-run.sh` - Post-run report generator; parses `agent-team-log.jsonl` into a markdown summary
+- `circuit-breaker.sh` - State machine tracking consecutive tool failures (CLOSED→OPEN→HALF-OPEN)
+- `security-check.sh` - PreToolUse guard blocking dangerous shell commands (rm -rf, DROP TABLE, force push)
 
 ### 5.5 Worktree Isolation Strategy
 
@@ -409,7 +414,7 @@ Before starting implementation:
 - [ ] Verify spawn prompts are self-contained (teammates don't inherit lead context)
 - [ ] Confirm models are appropriate for each role
 
-### 9.5 Security Guardrails
+### 9.4 Security Guardrails
 
 Prevent agents from executing dangerous operations (whether from bugs, prompt injection, or misunderstanding):
 
@@ -422,7 +427,7 @@ Prevent agents from executing dangerous operations (whether from bugs, prompt in
 
 **Configuration**: Add a `PreToolUse` hook matching `Bash` tool to your `settings.json`. See `reference/security-guardrails.md` for complete patterns, example hooks, and OWASP AI Agent Security Top 10 coverage.
 
-### 9.4 Post-Execution Guardrails
+### 9.5 Post-Execution Guardrails
 
 After each edit/task (via hooks):
 - [ ] Lint check (PostToolUse hook)

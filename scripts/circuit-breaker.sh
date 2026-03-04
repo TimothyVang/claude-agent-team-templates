@@ -52,14 +52,15 @@ read_field() {
 write_state() {
     local tool="$1" state="$2" failures="$3" opened_at="$4"
     local entry="\"${tool}\":{\"state\":\"${state}\",\"failures\":${failures},\"opened_at\":${opened_at}}"
+    local tmp_file="${STATE_FILE}.tmp"
     if grep -q "\"${tool}\":" "$STATE_FILE" 2>/dev/null; then
-        # Replace existing entry
-        sed -i "s|\"${tool}\":{[^}]*}|${entry}|" "$STATE_FILE"
+        # Replace existing entry (portable: no sed -i)
+        sed "s|\"${tool}\":{[^}]*}|${entry}|" "$STATE_FILE" > "$tmp_file" && mv "$tmp_file" "$STATE_FILE"
     else
-        # Insert new entry
-        sed -i "s|}$|,${entry}}|" "$STATE_FILE"
+        # Insert new entry (portable: no sed -i)
+        sed "s|}$|,${entry}}|" "$STATE_FILE" > "$tmp_file" && mv "$tmp_file" "$STATE_FILE"
         # Handle empty object case
-        sed -i "s|{,|{|" "$STATE_FILE"
+        sed "s|{,|{|" "$STATE_FILE" > "$tmp_file" && mv "$tmp_file" "$STATE_FILE"
     fi
 }
 

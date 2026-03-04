@@ -73,18 +73,25 @@ echo ""
 echo "=== Tier 2: Undo and retry ==="
 
 # Only attempt git operations if we have commits to undo
-if git log --oneline -1 &>/dev/null; then
+COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo 0)
+if [ "$COMMIT_COUNT" -gt 1 ]; then
     echo "[RECOVERY] Stashing current state..."
+    STASH_BEFORE=$(git stash list 2>/dev/null | wc -l)
     git stash push -m "error-recovery-hook auto-stash" 2>/dev/null || true
+    STASH_AFTER=$(git stash list 2>/dev/null | wc -l)
 
     echo "[RECOVERY] Soft-resetting last commit..."
     git reset --soft HEAD~1 2>/dev/null || {
         echo "[RECOVERY] Could not reset last commit. Restoring stash."
-        git stash pop 2>/dev/null || true
+        if [ "$STASH_AFTER" -gt "$STASH_BEFORE" ]; then
+            git stash pop 2>/dev/null || echo "[RECOVERY] WARNING: stash pop failed — check 'git stash list'"
+        fi
     }
 
     echo "[RECOVERY] Restoring working state..."
-    git stash pop 2>/dev/null || true
+    if [ "$STASH_AFTER" -gt "$STASH_BEFORE" ]; then
+        git stash pop 2>/dev/null || echo "[RECOVERY] WARNING: stash pop failed — check 'git stash list'"
+    fi
 
     # Capture what failed for feedback
     FAIL_OUTPUT=$(eval "$VERIFY_CMD" 2>&1 || true)
@@ -127,4 +134,4 @@ cat >> "$LOG_FILE" <<JSONEOF
 JSONEOF
 
 rm -f "$RETRY_STATE_FILE"
-exit 2
+exit 1

@@ -47,6 +47,8 @@
 
 - [ ] **Review observability log**: Check `.claude/agent-team-log.jsonl` for patterns — excessive retries, high failure rates, goal drift events.
 
+- [ ] **Generate run report**: Run `./agent-team-templates/scripts/evaluate-run.sh` to produce a markdown summary of task completion rate, failure counts, and flagged patterns.
+
 - [ ] **Calculate total cost**: Count approximate tokens used. Compare against budget estimate from setup checklist.
 
 - [ ] **Identify cost optimizations**: Could any agents have used a cheaper model? Were there unnecessary tool calls?

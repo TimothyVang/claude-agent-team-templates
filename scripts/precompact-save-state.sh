@@ -3,6 +3,8 @@
 # Preserves task context, git state, and active files so agents can
 # recover smoothly after compaction reduces their conversation history.
 
+set -euo pipefail
+
 PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 SNAPSHOT_DIR="${PROJECT_ROOT}/.claude/compaction-snapshots"
 mkdir -p "$SNAPSHOT_DIR"

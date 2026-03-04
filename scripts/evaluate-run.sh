@@ -34,7 +34,9 @@ ESCALATION_COUNT=$(grep -c '"event_type":"error_recovery_escalation"' "$LOG_FILE
 TASK_COMPLETED=$(grep -c '"event_type":"TaskCompleted"' "$LOG_FILE" 2>/dev/null || echo 0)
 
 # Task completion rate (integer math only)
-TOTAL_TASKS=$((TASK_COMPLETED + FAILURE_COUNT))
+# Count only task-level events, not tool-level failures
+TASK_FAILED=$(grep -c '"event_type":"error_recovery_escalation"' "$LOG_FILE" 2>/dev/null || echo 0)
+TOTAL_TASKS=$((TASK_COMPLETED + TASK_FAILED))
 if [ "$TOTAL_TASKS" -gt 0 ]; then
     COMPLETION_RATE=$(( (TASK_COMPLETED * 100) / TOTAL_TASKS ))
 else

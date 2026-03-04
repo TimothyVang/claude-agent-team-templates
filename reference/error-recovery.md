@@ -11,12 +11,13 @@ Every failure an agent team can encounter falls into one of these categories. Ea
 
 ### Recovery Tier Reference
 
-| Tier | Action | Token Cost | Use When |
-|------|--------|-----------|----------|
-| T1 - Retry | Retry same action (max 2x) | Low | Transient failures |
-| T2 - Fallback | Try alternative approach | Medium | Tool/method unavailable |
-| T3 - Escalate | Message lead or human | Low | Ambiguity, permissions, drift |
-| T4 - Abort | Stop task, preserve state | None | Unrecoverable or dangerous |
+| Tier | Strategy | Token Cost | Use When | Max Attempts |
+|------|----------|-----------|----------|-------------|
+| T1 - Retry with backoff | Retry same action with delay | Low | Transient failures (network, rate limit) | 3 |
+| T2 - Undo-and-retry | Revert partial work, retry fresh | Medium | Partial broken work (bad edit, failed commit) | 2 |
+| T3 - Model fallback | Escalate to more capable model | Medium | Model-specific failure (haiku→sonnet→opus) | 1 |
+| T4 - Checkpoint recovery | Restart from last good state | Low | Task-level failure, context exhaustion | 1 |
+| T5 - Human escalation | Stop and request human help | None | All tiers 1-4 exhausted, permissions, ambiguity | - |
 
 ---
 
@@ -28,7 +29,7 @@ Every failure an agent team can encounter falls into one of these categories. Ea
 
 **Detection**: Agent asks clarifying questions in first 2 tool calls instead of making progress. Output contains phrases like "I'm not sure which..." or "Could you clarify...".
 
-**Recovery Tier**: T3 - Escalate to lead with specific questions.
+**Recovery Tier**: T5 - Escalate to lead with specific questions.
 
 ```bash
 # Hook: detect spinning on ambiguous input (verify-task.sh)
@@ -47,7 +48,7 @@ fi
 
 **Detection**: Tool call returns error containing "tool not found", "unknown tool", or "not available".
 
-**Recovery Tier**: T2 - Fallback to alternative tool (e.g., use `gh` CLI via Bash instead).
+**Recovery Tier**: T2 - Undo-and-retry with alternative tool (e.g., use `gh` CLI via Bash instead).
 
 ```bash
 # Hook: detect tool-not-found and suggest alternatives (post-tool-use.sh)
@@ -65,7 +66,7 @@ fi
 
 **Detection**: Tool returns error about missing/invalid parameters. Edit tool returns "old_string not found in file".
 
-**Recovery Tier**: T1 - Retry after reading the file to get current content.
+**Recovery Tier**: T1 - Retry with backoff after reading the file to get current content.
 
 ```bash
 # Hook: detect edit failures and force re-read (post-tool-use.sh)
@@ -83,7 +84,7 @@ fi
 
 **Detection**: HTTP status codes >= 400 in tool output. Error messages from CLI tools referencing API responses.
 
-**Recovery Tier**: T1 for 5xx (retry once), T2 for 4xx (fix request), T3 for persistent failures.
+**Recovery Tier**: T1 for 5xx (retry with backoff), T2 for 4xx (undo-and-retry with fix), T5 for persistent failures.
 
 ```bash
 # Hook: classify API errors (post-tool-use.sh)
@@ -104,7 +105,7 @@ fi
 
 **Detection**: Errors containing "permission denied", "403", "protected branch", or user denying a tool prompt.
 
-**Recovery Tier**: T3 - Escalate to human. Never attempt to bypass permissions.
+**Recovery Tier**: T5 - Human escalation. Never attempt to bypass permissions.
 
 ```bash
 # Hook: detect permission issues (post-tool-use.sh)
@@ -122,7 +123,7 @@ fi
 
 **Detection**: Tool returns timeout error. Bash command killed after timeout period.
 
-**Recovery Tier**: T2 - Run with reduced scope (single test file instead of full suite), then T3 if still failing.
+**Recovery Tier**: T2 - Undo-and-retry with reduced scope (single test file instead of full suite), then T5 if still failing.
 
 ```bash
 # Hook: detect timeouts and suggest scope reduction (post-tool-use.sh)
@@ -140,7 +141,7 @@ fi
 
 **Detection**: Errors containing "ENOTFOUND", "ECONNREFUSED", "network unreachable", "connection reset".
 
-**Recovery Tier**: T1 - Retry once after brief pause. T4 if persistent (environment problem, not agent problem).
+**Recovery Tier**: T1 - Retry with backoff after brief pause. T4 if persistent (checkpoint recovery — environment problem, not agent problem).
 
 ```bash
 # Hook: detect network issues (post-tool-use.sh)
@@ -158,7 +159,7 @@ fi
 
 **Detection**: HTTP 429 status, or error messages containing "rate limit", "too many requests", "quota exceeded".
 
-**Recovery Tier**: T1 - Wait and retry (respect `Retry-After` header). T3 if critical path is blocked.
+**Recovery Tier**: T1 - Retry with backoff (respect `Retry-After` header). T5 if critical path is blocked.
 
 ```bash
 # Hook: detect rate limiting (post-tool-use.sh)
@@ -176,7 +177,7 @@ fi
 
 **Detection**: JSON parse errors, schema validation failures, format check in verification hook.
 
-**Recovery Tier**: T1 - Retry with explicit format instructions. T2 - Use a structured output tool.
+**Recovery Tier**: T1 - Retry with backoff and explicit format instructions. T2 - Undo-and-retry with a structured output tool.
 
 ```bash
 # Hook: validate JSON output (verify-task.sh)
@@ -196,7 +197,7 @@ fi
 
 **Detection**: Responses reference non-existent code, repeat earlier statements verbatim, or lose track of task state. System returns context limit warnings.
 
-**Recovery Tier**: T4 - Abort current agent, spawn fresh agent with compressed context (just the task + key findings so far).
+**Recovery Tier**: T4 - Checkpoint recovery. Abort current agent, spawn fresh agent with compressed context (just the task + key findings so far).
 
 ```bash
 # Hook: detect context exhaustion signals (post-tool-use.sh)
@@ -218,7 +219,7 @@ fi
 
 **Detection**: Verification hooks that check correctness, not just absence of errors. Peer review via observer mesh. Test suite runs after each change.
 
-**Recovery Tier**: T3 - Escalate for review. Prevention is far more effective than recovery.
+**Recovery Tier**: T5 - Human escalation for review. Prevention is far more effective than recovery.
 
 ```bash
 # Hook: verify edits touched expected files only (verify-task.sh)
@@ -240,7 +241,7 @@ done
 
 **Detection**: Diff size disproportionate to task scope. Files modified outside the task's stated scope. Agent messages shift topic.
 
-**Recovery Tier**: T3 - Escalate. Lead reviews diff against original task description.
+**Recovery Tier**: T5 - Human escalation. Lead reviews diff against original task description.
 
 ```bash
 # Hook: detect scope creep via diff size (verify-task.sh)
@@ -366,14 +367,16 @@ Options: <2-3 possible approaches>
 ```
 Error occurs
   ├── Is it transient? (network, timeout, rate limit)
-  │     ├── Yes → T1: Retry once
-  │     └── Still failing → T3: Escalate
-  ├── Is the tool/method wrong?
-  │     └── Yes → T2: Try alternative approach
-  ├── Is it a permission issue?
-  │     └── Yes → T3: Escalate (never bypass)
-  ├── Is the agent confused or drifting?
-  │     └── Yes → T3: Escalate with context
-  └── Is the environment broken?
-        └── Yes → T4: Abort, preserve state
+  │     ├── Yes → T1: Retry with backoff
+  │     └── Still failing → T5: Human escalation
+  ├── Is the tool/method wrong or partial work broken?
+  │     └── Yes → T2: Undo-and-retry with alternative approach
+  ├── Is it a model-specific failure?
+  │     └── Yes → T3: Model fallback (haiku→sonnet→opus)
+  ├── Is the agent's context exhausted or task-level failure?
+  │     └── Yes → T4: Checkpoint recovery (restart from last good state)
+  ├── Is it a permission issue or agent drifting?
+  │     └── Yes → T5: Human escalation (never bypass)
+  └── All tiers exhausted?
+        └── Yes → T5: Human escalation, preserve state
 ```
