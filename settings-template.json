@@ -78,6 +78,43 @@
           }
         ]
       }
+    ],
+
+    "PreCompact": [
+      {
+        "// NOTE": "Saves critical state (git diff, modified files, task context) before auto-compaction so agents can recover smoothly.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/precompact-save-state.sh"
+          }
+        ]
+      }
+    ],
+
+    "Stop": [
+      {
+        "// NOTE": "Prompt-based hook: LLM evaluates whether agent truly finished before allowing stop. Prevents premature task completion — the #1 agent failure mode.",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Review the agent's work. Did they complete ALL acceptance criteria from their task? Check: tests pass, no TODO/FIXME left in modified files, code compiles. Reply COMPLETE if done, or INCOMPLETE with specific unfinished items."
+          }
+        ]
+      }
+    ],
+
+    "PreToolUse": [
+      {
+        "matcher": { "tool_name": "Bash" },
+        "// NOTE": "Security guardrail: blocks dangerous shell commands (rm -rf /, DROP TABLE, force push, etc). See reference/security-guardrails.md.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/security-check.sh"
+          }
+        ]
+      }
     ]
   },
 

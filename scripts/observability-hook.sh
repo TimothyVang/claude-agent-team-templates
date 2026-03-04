@@ -11,9 +11,12 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# Cross-platform temp directory
+PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+TMPDIR="${TMPDIR:-${PROJECT_ROOT}/.claude/tmp}"
+mkdir -p "$TMPDIR"
 LOG_FILE="$PROJECT_ROOT/.claude/agent-team-log.jsonl"
-START_TIME="${EPOCHREALTIME:-$(date +%s)}"
+START_TIME=$(date +%s%3N 2>/dev/null || date +%s)000
 
 # --- Resolve fields ---
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -45,11 +48,8 @@ if git rev-parse --is-inside-work-tree &>/dev/null; then
 fi
 
 # --- Calculate duration if possible ---
-END_TIME="${EPOCHREALTIME:-$(date +%s)}"
-DURATION_MS=0
-if command -v bc &>/dev/null 2>&1; then
-    DURATION_MS=$(echo "($END_TIME - $START_TIME) * 1000" | bc 2>/dev/null | cut -d. -f1 || echo 0)
-fi
+END_TIME=$(date +%s%3N 2>/dev/null || date +%s)000
+DURATION_MS=$(( END_TIME - START_TIME ))
 
 # --- Ensure log directory exists ---
 mkdir -p "$(dirname "$LOG_FILE")"

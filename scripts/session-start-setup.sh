@@ -8,7 +8,10 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# Cross-platform temp directory
+PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+TMPDIR="${TMPDIR:-${PROJECT_ROOT}/.claude/tmp}"
+mkdir -p "$TMPDIR"
 
 echo "=== Session Start Setup ==="
 

@@ -13,8 +13,11 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-RETRY_STATE_FILE="/tmp/error-recovery-attempts-$(basename "$PROJECT_ROOT")"
+# Cross-platform temp directory
+PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+TMPDIR="${TMPDIR:-${PROJECT_ROOT}/.claude/tmp}"
+mkdir -p "$TMPDIR"
+RETRY_STATE_FILE="$TMPDIR/error-recovery-attempts-$(basename "$PROJECT_ROOT")"
 MAX_RETRIES=3
 LOG_FILE="$PROJECT_ROOT/.claude/agent-team-log.jsonl"
 

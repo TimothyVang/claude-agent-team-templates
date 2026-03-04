@@ -8,7 +8,10 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# Cross-platform temp directory
+PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+TMPDIR="${TMPDIR:-${PROJECT_ROOT}/.claude/tmp}"
+mkdir -p "$TMPDIR"
 STATE_DIR="$PROJECT_ROOT/.claude"
 STATE_FILE="$STATE_DIR/remaining-work-state.txt"
 
@@ -43,7 +46,8 @@ fi
 
 # 4. Loop detection - compare TODOs with previous snapshots
 if [ -n "$CURRENT_TODOS" ]; then
-    CURRENT_SNAPSHOT=$(echo "$CURRENT_TODOS" | md5sum 2>/dev/null | cut -d' ' -f1 || echo "none")
+    hash_cmd() { sha256sum "$1" 2>/dev/null || shasum -a 256 "$1" 2>/dev/null || python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$1"; }
+    CURRENT_SNAPSHOT=$(echo "$CURRENT_TODOS" | hash_cmd /dev/stdin 2>/dev/null | cut -d' ' -f1 || echo "none")
 
     # State file format: "count:hash" per line (most recent at bottom)
     CONSECUTIVE=0

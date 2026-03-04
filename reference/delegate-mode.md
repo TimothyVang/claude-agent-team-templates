@@ -166,3 +166,55 @@ Do not ask for permission to edit files within the scope: src/auth/*.ts
 ```
 
 **Status**: Known issue, not yet resolved. Track at the Claude Code GitHub issues page.
+
+---
+
+## Worktree + Delegate Mode
+
+When using `isolation: "worktree"` with agent teams, each agent gets its own git worktree — an isolated copy of the repository on a separate branch in `.claude/worktrees/`.
+
+### How It Works
+
+1. Agent is spawned with `isolation: "worktree"` in its Agent tool config
+2. A new branch is created from HEAD (e.g., `worktree-backend-dev-abc123`)
+3. The agent's working directory is set to the worktree path
+4. All edits happen on the isolated branch — main branch is untouched
+5. On session exit: worktree is kept if changes were made, cleaned up if empty
+
+### Delegate Mode in Worktrees
+
+| Permission Mode | In Worktree | Effect |
+|----------------|-------------|--------|
+| `default` | Edit/bash still prompt | Same safety, isolated branch |
+| `acceptEdits` | Edits auto-approved | Agent freely edits isolated copy |
+| `bypassPermissions` | Full autonomy | Agent works completely independently |
+| `plan` | Read-only | Agent explores but can't change anything |
+
+The key insight: **worktree isolation makes `acceptEdits` and `bypassPermissions` safer** because all changes are on a disposable branch. The lead reviews and merges (or discards) the branch after the agent finishes.
+
+### When to Combine
+
+- **Worktree + acceptEdits**: Best default for implementers. They work freely without affecting main.
+- **Worktree + plan_mode_required**: Maximum safety. Agent plans in isolation, lead approves, then agent implements in the same worktree.
+- **Worktree + competing approaches**: Spawn 2 agents in separate worktrees to try different solutions. Pick the better one.
+
+### Merge Strategy
+
+After agents finish:
+```bash
+# Review each worktree's changes
+git diff main...worktree-backend-dev-abc123
+
+# Merge the good ones
+git merge worktree-backend-dev-abc123
+
+# Clean up
+git worktree prune
+```
+
+### Important Notes
+
+- Worktrees share the same `.git` directory — all branches are visible
+- Large repos: worktree creation takes seconds (it's not a full clone)
+- Agents in worktrees can still read the task list and send messages (shared `.claude/` directory)
+- If two agents modify the same file in different worktrees, you'll need to resolve conflicts at merge time

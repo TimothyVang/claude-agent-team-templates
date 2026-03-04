@@ -13,6 +13,11 @@
 
 set -euo pipefail
 
+# Cross-platform temp directory
+PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+TMPDIR="${TMPDIR:-${PROJECT_ROOT}/.claude/tmp}"
+mkdir -p "$TMPDIR"
+
 FILE="${CLAUDE_TOOL_INPUT_FILE_PATH:-}"
 
 if [ -z "$FILE" ]; then

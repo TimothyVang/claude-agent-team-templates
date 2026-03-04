@@ -231,6 +231,42 @@ See `scripts/` directory for hook implementations:
 - `error-recovery-hook.sh` - Multi-tier failure recovery
 - `observability-hook.sh` - Logs agent actions for monitoring
 
+### 5.5 Worktree Isolation Strategy
+
+Instead of (or in addition to) file ownership, you can use **git worktrees** to give each agent an isolated copy of the repository on its own branch.
+
+| Strategy | When to Use | Pros | Cons |
+|----------|------------|------|------|
+| **File ownership** | Teammates work on different files/modules | Simple, no merge needed, lower overhead | Can't explore alternative approaches |
+| **Worktree isolation** | Teammates may rewrite same files, or you want competing solutions | Each agent gets full repo copy, safe experimentation | Requires merge/selection step at the end |
+| **Both** | High-stakes changes with clear module boundaries | Maximum safety: isolated branches + no file overlap | Highest setup overhead |
+
+**Configuration**: Set `isolation: "worktree"` when spawning an agent:
+```
+Agent(name: "backend-dev", isolation: "worktree", ...)
+```
+
+The agent gets a new branch in `.claude/worktrees/` (e.g., `worktree-backend-dev-abc123`). All edits happen on this branch — the main branch is untouched until the lead merges.
+
+**Merge workflow**:
+```bash
+# Review each worktree's changes
+git diff main...worktree-backend-dev-abc123
+
+# Merge the good ones
+git merge worktree-backend-dev-abc123
+
+# Clean up
+git worktree prune
+```
+
+**Best pairings**:
+- Worktree + `acceptEdits` → Agent freely edits its isolated copy (safest default for implementers)
+- Worktree + `plan_mode_required` → Agent plans first, lead approves, then implements in same worktree
+- Two agents in separate worktrees → Competing approaches; pick the better one
+
+See `reference/delegate-mode.md` for detailed worktree + permission mode interaction.
+
 ---
 
 ## 6. Error Recovery & Failure Handling
@@ -373,6 +409,19 @@ Before starting implementation:
 - [ ] Verify spawn prompts are self-contained (teammates don't inherit lead context)
 - [ ] Confirm models are appropriate for each role
 
+### 9.5 Security Guardrails
+
+Prevent agents from executing dangerous operations (whether from bugs, prompt injection, or misunderstanding):
+
+| Category | Examples Blocked | Hook |
+|----------|-----------------|------|
+| **Dangerous commands** | `rm -rf /`, `DROP TABLE`, `git push --force` to main | PreToolUse (Bash) |
+| **Sensitive files** | `.env`, `*.pem`, `credentials.*`, SSH keys | PreToolUse (Read/Edit/Write) |
+| **Path traversal** | `../../../etc/passwd` | PreToolUse (file operations) |
+| **Hardcoded secrets** | API keys, passwords, tokens in source code | PostToolUse (Edit/Write) |
+
+**Configuration**: Add a `PreToolUse` hook matching `Bash` tool to your `settings.json`. See `reference/security-guardrails.md` for complete patterns, example hooks, and OWASP AI Agent Security Top 10 coverage.
+
 ### 9.4 Post-Execution Guardrails
 
 After each edit/task (via hooks):
@@ -397,6 +446,7 @@ Ready-to-use prompt templates in `prompts/` directory:
 | F: Incident Response | `prompts/incident-response.md` | Production debugging with observer |
 | G: Migration | `prompts/migration.md` | Library/framework migration with canary |
 | H: Documentation | `prompts/documentation.md` | Parallel documentation generation |
+| I: Plan-First Development | `prompts/plan-first.md` | High-stakes changes requiring plan approval before any code |
 
 ---
 
@@ -422,6 +472,8 @@ Ready-to-use prompt templates in `prompts/` directory:
 | **No guardrails on destructive actions** | Accidental deletions, bad migrations | Autonomy level gates (Section 9) |
 | **No monitoring/observability** | Problems go undetected | Failure detection signals in hooks (Section 8) |
 | **Vague spawn prompts** | Teammates lack context, drift | Self-contained prompts with acceptance criteria |
+
+> **Pre-launch check**: See `checklists/failure-modes-checklist.md` for a design checklist based on the 14 most common multi-agent failure modes (arXiv 2503.13657). Research found 41-86% of multi-agent systems fail, with 79% of failures tracing to specification and coordination issues — most of which are preventable with upfront design.
 
 ---
 
@@ -475,6 +527,7 @@ See `checklists/` directory:
 - `runtime-checklist.md` - While the team is working
 - `post-run-checklist.md` - After the team finishes
 - `error-recovery-reference.md` - Quick-reference for error handling
+- `failure-modes-checklist.md` - 14 multi-agent failure modes design checklist (arXiv-based)
 
 ---
 
@@ -499,6 +552,16 @@ See `prompts/quick-start-generator.md` for a fill-in-the-blanks prompt generator
 | [disler/claude-code-hooks-multi-agent-observability](https://github.com/disler/claude-code-hooks-multi-agent-observability) | Monitoring hooks for multi-agent workflows |
 | [VoltAgent/awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) | 100+ curated subagent configurations |
 | [cs50victor/claude-code-teams-mcp](https://github.com/cs50victor/claude-code-teams-mcp) | Per-teammate MCP server scoping |
+| [wshobson/agents](https://github.com/wshobson/agents) | 112 agents, 16 orchestrators, 146 skills — extensive agent library |
+| [davila7/claude-code-templates](https://github.com/davila7/claude-code-templates) | CLI tool with web interface for browsing agent templates |
+| [disler/claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) | All 14 hook events with practical patterns and examples |
+| [hesreallyhim/awesome-claude-code](https://github.com/hesreallyhim/awesome-claude-code) | Curated list of skills, hooks, commands, and plugins |
+
+### Research & Reports
+
+- **Anthropic**: [Agentic Coding Trends Report (2026)](https://www.anthropic.com/research/agentic-coding-trends) — Data on how teams use Claude Code agents at scale
+- **arXiv 2503.13657**: [Taxonomy of Failure Modes in Multi-Agent Systems](https://arxiv.org/abs/2503.13657) — 14 failure modes, 41-86% failure rates, mitigation strategies
+- **Stripe Engineering**: Minions Part 2 (Feb 2026) — 1,000+ PRs/week, max 2 CI rounds, tool curation patterns
 
 ### Programmatic Agent Spawning
 
@@ -513,5 +576,6 @@ For advanced use cases, use the **Claude Agent SDK** to spawn agents programmati
 Deep-dives in `reference/` (read as needed):
 - `reference/error-recovery.md` - Full error classification and recovery patterns
 - `reference/token-optimization.md` - Cost benchmarks and caching strategies
-- `reference/delegate-mode.md` - Advanced agent control modes
+- `reference/delegate-mode.md` - Advanced agent control modes + worktree interaction
 - `reference/role-prompt-patterns.md` - Supervisor/worker prompt templates
+- `reference/security-guardrails.md` - OWASP-based security controls for agent teams
