@@ -171,19 +171,19 @@ Prevent context exhaustion and reduce per-turn costs:
 When approaching context limits, prioritize retaining information in this order:
 
 ```
-Priority 1 (never drop): System prompt + CLAUDE.md
+P1 (Critical — never drop): System prompt + CLAUDE.md
     └── Agent identity, rules, project structure
 
-Priority 2 (compress last): Current task description + acceptance criteria
+P2 (High — compress last): Current task description + acceptance criteria
     └── What the agent is supposed to be doing right now
 
-Priority 3 (compress early): Files being actively edited
+P3 (Medium — compress early): Files being actively edited
     └── Can be re-read from disk if needed
 
-Priority 4 (compress first): Conversation history + old tool results
+P4 (Low — compress first): Conversation history + old tool results
     └── Historical context, already acted upon
 
-Priority 5 (drop if needed): Tool descriptions for unused tools
+P5 (Minimal — drop if needed): Tool descriptions for unused tools
     └── Can be re-loaded when the tool is actually needed
 ```
 

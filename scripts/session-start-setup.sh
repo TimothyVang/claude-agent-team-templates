@@ -42,7 +42,7 @@ fi
 # 4. Verify key tools are available
 for tool in git node npm; do
     if command -v "$tool" &>/dev/null; then
-        echo "[OK] $tool: $(command -v $tool)"
+        echo "[OK] $tool: $(command -v "$tool")"
     fi
 done
 

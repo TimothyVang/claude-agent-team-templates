@@ -23,19 +23,23 @@ if [ ! -f "$LOG_FILE" ]; then
     exit 1
 fi
 
+# Snapshot log to temp copy to avoid race with concurrent writers
+LOG_SNAPSHOT="${TMPDIR}/evaluate-run-snapshot-${TIMESTAMP}.jsonl"
+cp "$LOG_FILE" "$LOG_SNAPSHOT"
+
 echo "=== Evaluating run log: $LOG_FILE ==="
 
 # --- Parse counts using grep/awk ---
-TOTAL_ENTRIES=$(grep -c . "$LOG_FILE" 2>/dev/null || echo 0)
-SUCCESS_COUNT=$(grep -c '"status":"success"' "$LOG_FILE" 2>/dev/null || echo 0)
-FAILURE_COUNT=$(grep -c '"status":"failure"' "$LOG_FILE" 2>/dev/null || echo 0)
-RETRY_COUNT=$(grep -c '"event_type":"error_recovery"' "$LOG_FILE" 2>/dev/null || echo 0)
-ESCALATION_COUNT=$(grep -c '"event_type":"error_recovery_escalation"' "$LOG_FILE" 2>/dev/null || echo 0)
-TASK_COMPLETED=$(grep -c '"event_type":"TaskCompleted"' "$LOG_FILE" 2>/dev/null || echo 0)
+TOTAL_ENTRIES=$(grep -c . "$LOG_SNAPSHOT" 2>/dev/null || echo 0)
+SUCCESS_COUNT=$(grep -c '"status":"success"' "$LOG_SNAPSHOT" 2>/dev/null || echo 0)
+FAILURE_COUNT=$(grep -c '"status":"failure"' "$LOG_SNAPSHOT" 2>/dev/null || echo 0)
+RETRY_COUNT=$(grep -c '"event_type":"error_recovery"' "$LOG_SNAPSHOT" 2>/dev/null || echo 0)
+ESCALATION_COUNT=$(grep -c '"event_type":"error_recovery_escalation"' "$LOG_SNAPSHOT" 2>/dev/null || echo 0)
+TASK_COMPLETED=$(grep -c '"event_type":"TaskCompleted"' "$LOG_SNAPSHOT" 2>/dev/null || echo 0)
 
 # Task completion rate (integer math only)
 # Count only task-level events, not tool-level failures
-TASK_FAILED=$(grep -c '"event_type":"error_recovery_escalation"' "$LOG_FILE" 2>/dev/null || echo 0)
+TASK_FAILED=$(grep -c '"event_type":"error_recovery_escalation"' "$LOG_SNAPSHOT" 2>/dev/null || echo 0)
 TOTAL_TASKS=$((TASK_COMPLETED + TASK_FAILED))
 if [ "$TOTAL_TASKS" -gt 0 ]; then
     COMPLETION_RATE=$(( (TASK_COMPLETED * 100) / TOTAL_TASKS ))
@@ -44,11 +48,11 @@ else
 fi
 
 # --- Extract time span ---
-FIRST_TIMESTAMP=$(grep -m1 '"timestamp"' "$LOG_FILE" 2>/dev/null | sed 's/.*"timestamp":"\([^"]*\)".*/\1/' || echo "unknown")
-LAST_TIMESTAMP=$(grep '"timestamp"' "$LOG_FILE" 2>/dev/null | tail -1 | sed 's/.*"timestamp":"\([^"]*\)".*/\1/' || echo "unknown")
+FIRST_TIMESTAMP=$(grep -m1 '"timestamp"' "$LOG_SNAPSHOT" 2>/dev/null | sed 's/.*"timestamp":"\([^"]*\)".*/\1/' || echo "unknown")
+LAST_TIMESTAMP=$(grep '"timestamp"' "$LOG_SNAPSHOT" 2>/dev/null | tail -1 | sed 's/.*"timestamp":"\([^"]*\)".*/\1/' || echo "unknown")
 
 # --- Collect unique agents ---
-AGENTS=$(grep -o '"agent_role":"[^"]*"' "$LOG_FILE" 2>/dev/null | sort -u | sed 's/"agent_role":"//;s/"//' | tr '\n' ', ' | sed 's/,$//' || echo "unknown")
+AGENTS=$(grep -o '"agent_role":"[^"]*"' "$LOG_SNAPSHOT" 2>/dev/null | sort -u | sed 's/"agent_role":"//;s/"//' | tr '\n' ', ' | sed 's/,$//' || echo "unknown")
 
 # --- Flagged patterns ---
 FLAGGED_RETRIES=""
@@ -93,4 +97,8 @@ ${FLAGGED_ESCALATIONS:-}
 REPORT_EOF
 
 echo "Report written to: $REPORT_FILE"
+
+# Clean up snapshot
+rm -f "$LOG_SNAPSHOT"
+
 exit 0

@@ -70,6 +70,8 @@ I want a final summary of: feasibility, recommended approach, effort estimate.
 - **Technology evaluation**: Have each researcher investigate a different technology option.
 - **Migration assessment**: Explorer maps current state, researcher maps target state, prototype validates migration path.
 
+> **File ownership note**: The codebase-explorer and docs-researcher work in read-only mode (`plan` permission) and do not need file ownership. Only the prototype-builder (which uses `acceptEdits` in a worktree) needs file ownership, and since it works in an isolated worktree, conflicts with the main branch are avoided.
+
 ---
 
 ## Worked Example

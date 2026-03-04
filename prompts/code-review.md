@@ -75,6 +75,8 @@ I will synthesize their findings into a unified report.
 - **Add API reviewer**: For API changes, check backward compatibility, versioning, documentation.
 - **Focused review**: If you only care about security, use just the security reviewer as a subagent instead of a full team.
 
+> **File ownership note**: All reviewers work in read-only mode (`plan` permission), so file ownership conflicts are not a concern. Reviewers cannot edit files — they only read and report findings. If you add a fix-implementer to act on findings, assign file ownership to that agent.
+
 ---
 
 ## Worked Example

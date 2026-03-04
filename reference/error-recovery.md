@@ -243,6 +243,8 @@ done
 
 **Recovery Tier**: T5 - Human escalation. Lead reviews diff against original task description.
 
+**Automated detection**: The `scripts/check-remaining-work.sh` hook runs on TeammateIdle and detects goal drift by tracking whether the same TODOs persist across consecutive checks.
+
 ```bash
 # Hook: detect scope creep via diff size (verify-task.sh)
 DIFF_LINES=$(git diff --stat HEAD~1 2>/dev/null | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+')

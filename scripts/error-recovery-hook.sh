@@ -13,6 +13,9 @@
 
 set -euo pipefail
 
+# shellcheck source=lib/json-helpers.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/json-helpers.sh"
+
 # Cross-platform temp directory
 PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 TMPDIR="${TMPDIR:-${PROJECT_ROOT}/.claude/tmp}"
@@ -60,7 +63,7 @@ for i in 1 2 3; do
     echo "[RETRY] Attempt $i/$MAX_RETRIES (waiting ${DELAY}s)..."
     sleep "$DELAY"
 
-    if eval "$VERIFY_CMD" >/dev/null 2>&1; then
+    if bash -c "$VERIFY_CMD" >/dev/null 2>&1; then
         echo "[RECOVERY] Verification passed on retry attempt $i."
         rm -f "$RETRY_STATE_FILE"
         exit 0
@@ -76,25 +79,25 @@ echo "=== Tier 2: Undo and retry ==="
 COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo 0)
 if [ "$COMMIT_COUNT" -gt 1 ]; then
     echo "[RECOVERY] Stashing current state..."
-    STASH_BEFORE=$(git stash list 2>/dev/null | wc -l)
-    git stash push -m "error-recovery-hook auto-stash" 2>/dev/null || true
-    STASH_AFTER=$(git stash list 2>/dev/null | wc -l)
+    STASH_NAME="error-recovery-$(date +%s)"
+    git stash push -m "$STASH_NAME" 2>/dev/null || true
+    STASH_CREATED=$(git stash list 2>/dev/null | grep -c "$STASH_NAME" || true)
 
     echo "[RECOVERY] Soft-resetting last commit..."
     git reset --soft HEAD~1 2>/dev/null || {
         echo "[RECOVERY] Could not reset last commit. Restoring stash."
-        if [ "$STASH_AFTER" -gt "$STASH_BEFORE" ]; then
+        if [ "$STASH_CREATED" -gt 0 ]; then
             git stash pop 2>/dev/null || echo "[RECOVERY] WARNING: stash pop failed — check 'git stash list'"
         fi
     }
 
     echo "[RECOVERY] Restoring working state..."
-    if [ "$STASH_AFTER" -gt "$STASH_BEFORE" ]; then
+    if [ "$STASH_CREATED" -gt 0 ]; then
         git stash pop 2>/dev/null || echo "[RECOVERY] WARNING: stash pop failed — check 'git stash list'"
     fi
 
     # Capture what failed for feedback
-    FAIL_OUTPUT=$(eval "$VERIFY_CMD" 2>&1 || true)
+    FAIL_OUTPUT=$(bash -c "$VERIFY_CMD" 2>&1 || true)
 
     ATTEMPT=$((ATTEMPT + 1))
     echo "$ATTEMPT" > "$RETRY_STATE_FILE"
@@ -129,8 +132,10 @@ echo "  - Attempts: $ATTEMPT"
 
 # Log to observability file
 mkdir -p "$(dirname "$LOG_FILE")"
+SAFE_VERIFY_CMD=$(escape_json_string "$VERIFY_CMD")
+SAFE_AGENT_NAME=$(escape_json_string "${CLAUDE_AGENT_NAME:-unknown}")
 cat >> "$LOG_FILE" <<JSONEOF
-{"timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","event_type":"error_recovery_escalation","agent_role":"${CLAUDE_AGENT_NAME:-unknown}","action":"All recovery tiers exhausted","status":"failure","verify_cmd":"$VERIFY_CMD","attempts":$ATTEMPT}
+{"timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","event_type":"error_recovery_escalation","agent_role":"$SAFE_AGENT_NAME","action":"All recovery tiers exhausted","status":"failure","verify_cmd":"$SAFE_VERIFY_CMD","attempts":$ATTEMPT}
 JSONEOF
 
 rm -f "$RETRY_STATE_FILE"

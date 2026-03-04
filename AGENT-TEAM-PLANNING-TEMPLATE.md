@@ -26,6 +26,16 @@
 
 **Cost note**: Agent teams consume 3-10x more tokens than subagents. Always consider whether a cheaper pattern would work. See [Section 8](#8-token-optimization--cost-control).
 
+### When NOT to Use Agent Teams
+
+| Signal | Why Teams Are Wrong |
+|--------|-------------------|
+| < 3 independent tasks | Subagent or solo is faster/cheaper |
+| Single-file changes | No parallelism benefit |
+| < 30 min estimated work | Coordination overhead exceeds benefit |
+| Tight budget | Teams use 3-10x more tokens |
+| Tasks require strict ordering | Sequential work doesn't benefit from teams |
+
 ---
 
 ## 2. The Blueprint Pattern

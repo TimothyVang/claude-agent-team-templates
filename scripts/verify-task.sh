@@ -32,7 +32,7 @@ fi
 if [ -f "$PROJECT_ROOT/package.json" ]; then
     if grep -q '"lint"' "$PROJECT_ROOT/package.json" 2>/dev/null; then
         echo "[CHECK] Running lint..."
-        cd "$PROJECT_ROOT" && npm run lint --silent 2>/dev/null || {
+        (cd "$PROJECT_ROOT" && npm run lint --silent 2>/dev/null) || {
             echo "[FAIL] Lint check failed"
             ERRORS=$((ERRORS + 1))
             FAILED_CHECKS="${FAILED_CHECKS}lint,"
@@ -52,7 +52,7 @@ fi
 # 3. Run typecheck if config exists
 if [ -f "$PROJECT_ROOT/tsconfig.json" ]; then
     echo "[CHECK] Running typecheck..."
-    cd "$PROJECT_ROOT" && npx tsc --noEmit --pretty 2>/dev/null || {
+    (cd "$PROJECT_ROOT" && npx tsc --noEmit --pretty 2>/dev/null) || {
         echo "[FAIL] TypeScript check failed"
         ERRORS=$((ERRORS + 1))
         FAILED_CHECKS="${FAILED_CHECKS}typecheck,"
@@ -72,7 +72,7 @@ fi
 if [ -f "$PROJECT_ROOT/package.json" ]; then
     if grep -q '"test"' "$PROJECT_ROOT/package.json" 2>/dev/null; then
         echo "[CHECK] Running tests..."
-        cd "$PROJECT_ROOT" && npm test --silent 2>/dev/null || {
+        (cd "$PROJECT_ROOT" && npm test --silent 2>/dev/null) || {
             echo "[FAIL] Tests failed"
             ERRORS=$((ERRORS + 1))
             FAILED_CHECKS="${FAILED_CHECKS}tests,"

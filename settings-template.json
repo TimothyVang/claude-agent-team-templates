@@ -114,6 +114,16 @@
             "command": "./agent-team-templates/scripts/security-check.sh"
           }
         ]
+      },
+      {
+        "matcher": { "tool_name": "Read|Edit|Write" },
+        "// NOTE": "Sensitive file protection: blocks path traversal and access to .env, credentials, private keys. See reference/security-guardrails.md.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./agent-team-templates/scripts/security-file-check.sh"
+          }
+        ]
       }
     ]
   },

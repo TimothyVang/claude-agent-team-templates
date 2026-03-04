@@ -62,6 +62,8 @@ Block file operations that use `../` to escape intended directories.
 
 **Check**: Resolve all paths to absolute and verify they start with the project root.
 
+**Implementation**: See `scripts/security-file-check.sh` for a ready-to-use PreToolUse hook that blocks path traversal and sensitive file access.
+
 ## 4. Sensitive Data Detection
 
 Warn when agents write code containing hardcoded secrets.

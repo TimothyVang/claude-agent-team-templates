@@ -75,6 +75,7 @@ agent-team-templates/
 
 | # | Template | File | Best For | Team Size |
 |---|----------|------|----------|-----------|
+| - | Quick-Start Generator | `prompts/quick-start-generator.md` | Universal fill-in-the-blanks | Any |
 | A | Full-Stack Feature | `prompts/feature-dev.md` | Cross-layer features with architect | 4 |
 | B | Bug Investigation | `prompts/bug-hunt.md` | Competing hypotheses for root cause | 3-5 |
 | C | Code Review/Audit | `prompts/code-review.md` | Security, performance, quality review | 3-4 |

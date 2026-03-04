@@ -20,12 +20,12 @@ mkdir -p "$STATE_DIR"
 echo "=== Remaining Work Check ==="
 
 # 1. Check for TODO/FIXME/HACK comments in recently modified files
-RECENT_FILES=$(git diff --name-only HEAD~5 2>/dev/null || find . -name "*.ts" -o -name "*.tsx" -o -name "*.py" -o -name "*.js" -o -name "*.jsx" -mmin -30 2>/dev/null | head -20)
+RECENT_FILES=$(git diff --name-only HEAD~5 2>/dev/null || find . -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/build/*' \( -name "*.ts" -o -name "*.tsx" -o -name "*.py" -o -name "*.js" -o -name "*.jsx" \) -mmin -30 2>/dev/null | head -20)
 
 CURRENT_TODOS=""
 if [ -n "$RECENT_FILES" ]; then
     # Capture actual TODO lines for comparison (file:line format)
-    CURRENT_TODOS=$(echo "$RECENT_FILES" | xargs grep -n 'TODO\|FIXME\|HACK\|XXX' 2>/dev/null | sort || echo "")
+    CURRENT_TODOS=$(echo "$RECENT_FILES" | xargs grep -n 'TODO\|FIXME\|HACK\|XXX' 2>/dev/null | sort || true)
     TODO_COUNT=$(echo "$CURRENT_TODOS" | grep -c . 2>/dev/null || echo 0)
     if [ "$TODO_COUNT" -gt 0 ]; then
         echo "[INFO] Found $TODO_COUNT TODO/FIXME markers in recently modified files"
@@ -46,8 +46,7 @@ fi
 
 # 4. Loop detection - compare TODOs with previous snapshots
 if [ -n "$CURRENT_TODOS" ]; then
-    hash_cmd() { sha256sum "$1" 2>/dev/null || shasum -a 256 "$1" 2>/dev/null || python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$1"; }
-    CURRENT_SNAPSHOT=$(echo "$CURRENT_TODOS" | hash_cmd /dev/stdin 2>/dev/null | cut -d' ' -f1 || echo "none")
+    CURRENT_SNAPSHOT=$(echo "$CURRENT_TODOS" | sha256sum 2>/dev/null | cut -d' ' -f1 || echo "$CURRENT_TODOS" | shasum -a 256 2>/dev/null | cut -d' ' -f1 || echo "none")
 
     # State file format: "count:hash" per line (most recent at bottom)
     CONSECUTIVE=0

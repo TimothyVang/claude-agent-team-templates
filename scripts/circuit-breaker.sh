@@ -8,6 +8,11 @@
 #   HALF-OPEN → CLOSED  on success
 #   HALF-OPEN → OPEN    on failure
 #
+# State format: flat-file key=value (one line per field)
+#   <tool>.state=CLOSED|OPEN|HALF-OPEN
+#   <tool>.failures=<int>
+#   <tool>.opened_at=<epoch>
+#
 # Commands:
 #   record-failure <tool>   Record a tool failure
 #   record-success <tool>   Record a tool success
@@ -25,7 +30,7 @@ PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd
 TMPDIR="${TMPDIR:-${PROJECT_ROOT}/.claude/tmp}"
 mkdir -p "$TMPDIR"
 
-STATE_FILE="${PROJECT_ROOT}/.claude/circuit-breaker-state.json"
+STATE_FILE="${PROJECT_ROOT}/.claude/circuit-breaker-state.txt"
 FAILURE_THRESHOLD=3
 COOLDOWN_SECS=60
 
@@ -33,35 +38,36 @@ mkdir -p "$(dirname "$STATE_FILE")"
 
 # Initialize state file if absent
 if [ ! -f "$STATE_FILE" ]; then
-    echo '{}' > "$STATE_FILE"
+    : > "$STATE_FILE"
 fi
 
 COMMAND="${1:-status}"
 TOOL="${2:-}"
 NOW=$(date +%s)
 
-# --- Read field from JSON using grep/sed (no jq) ---
+# --- Read a field from the flat-file state ---
+# Usage: read_field <tool> <field>
+# Returns the value or empty string if not found
 read_field() {
     local tool="$1" field="$2"
-    grep -o "\"${tool}\":{[^}]*}" "$STATE_FILE" 2>/dev/null \
-        | grep -o "\"${field}\":[^,}]*" \
-        | sed "s/\"${field}\"://" | tr -d '"' || echo ""
+    grep "^${tool}\\.${field}=" "$STATE_FILE" 2>/dev/null \
+        | head -1 \
+        | sed "s/^${tool}\\.${field}=//" \
+        || echo ""
 }
 
-# --- Write/update tool state in JSON ---
+# --- Write/update tool state in flat file ---
+# Usage: write_state <tool> <state> <failures> <opened_at>
 write_state() {
     local tool="$1" state="$2" failures="$3" opened_at="$4"
-    local entry="\"${tool}\":{\"state\":\"${state}\",\"failures\":${failures},\"opened_at\":${opened_at}}"
     local tmp_file="${STATE_FILE}.tmp"
-    if grep -q "\"${tool}\":" "$STATE_FILE" 2>/dev/null; then
-        # Replace existing entry (portable: no sed -i)
-        sed "s|\"${tool}\":{[^}]*}|${entry}|" "$STATE_FILE" > "$tmp_file" && mv "$tmp_file" "$STATE_FILE"
-    else
-        # Insert new entry (portable: no sed -i)
-        sed "s|}$|,${entry}}|" "$STATE_FILE" > "$tmp_file" && mv "$tmp_file" "$STATE_FILE"
-        # Handle empty object case
-        sed "s|{,|{|" "$STATE_FILE" > "$tmp_file" && mv "$tmp_file" "$STATE_FILE"
-    fi
+
+    # Remove existing entries for this tool, then append new ones
+    grep -v "^${tool}\\." "$STATE_FILE" > "$tmp_file" 2>/dev/null || : > "$tmp_file"
+    echo "${tool}.state=${state}" >> "$tmp_file"
+    echo "${tool}.failures=${failures}" >> "$tmp_file"
+    echo "${tool}.opened_at=${opened_at}" >> "$tmp_file"
+    mv "$tmp_file" "$STATE_FILE"
 }
 
 case "$COMMAND" in
@@ -71,6 +77,10 @@ case "$COMMAND" in
         STATE="${STATE:-CLOSED}"
         FAILURES=$(read_field "$TOOL" "failures")
         FAILURES="${FAILURES:-0}"
+        # Validate FAILURES is numeric before arithmetic
+        if ! echo "$FAILURES" | grep -qE '^[0-9]+$'; then
+            FAILURES=0
+        fi
         FAILURES=$(( FAILURES + 1 ))
         if [ "$FAILURES" -ge "$FAILURE_THRESHOLD" ] || [ "$STATE" = "HALF-OPEN" ]; then
             write_state "$TOOL" "OPEN" "$FAILURES" "$NOW"
@@ -100,6 +110,10 @@ case "$COMMAND" in
         STATE="${STATE:-CLOSED}"
         OPENED_AT=$(read_field "$TOOL" "opened_at")
         OPENED_AT="${OPENED_AT:-0}"
+        # Validate OPENED_AT is numeric
+        if ! echo "$OPENED_AT" | grep -qE '^[0-9]+$'; then
+            OPENED_AT=0
+        fi
         if [ "$STATE" = "OPEN" ]; then
             ELAPSED=$(( NOW - OPENED_AT ))
             if [ "$ELAPSED" -ge "$COOLDOWN_SECS" ]; then
@@ -119,7 +133,11 @@ case "$COMMAND" in
     status)
         echo "=== Circuit Breaker Status ==="
         echo "State file: $STATE_FILE"
-        cat "$STATE_FILE"
+        if [ -s "$STATE_FILE" ]; then
+            cat "$STATE_FILE"
+        else
+            echo "(no tool states recorded)"
+        fi
         echo ""
         ;;
 

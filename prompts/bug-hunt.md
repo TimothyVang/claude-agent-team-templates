@@ -69,6 +69,8 @@ Use model: haiku for investigators to save tokens on the research phase.
 - **Timebox**: Set a mental limit. If no consensus after 10 minutes, intervene and steer.
 - **Escalation**: If all hypotheses are disproven, that's valuable info. Create new ones.
 
+> **File ownership note**: Since all investigators work in read-only mode (`plan` permission), file ownership conflicts are not a concern. Investigators cannot edit files — they only read and share findings. The fix implementer (promoted from an investigator) is the only agent that needs file ownership assigned.
+
 ---
 
 ## Worked Example

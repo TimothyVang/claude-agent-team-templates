@@ -104,3 +104,73 @@ Writers fix any issues the reviewer finds. Max 2 review rounds.
 - **Inline docs**: Have writers add JSDoc/docstrings directly in source files instead of separate doc files. Adjust file ownership to source directories.
 - **Style guide**: Add a style guide document to the prompt (or reference one) for the reviewer to enforce.
 - **Skip review**: Drop the reviewer for quick-and-dirty documentation where accuracy review is not critical.
+
+---
+
+## Worked Example
+
+> **Goal**: Generate REST API reference documentation for an Express.js app
+> with 25+ endpoints. Target audience: frontend developers consuming the API.
+
+### Filled-In Prompt
+
+```
+Create an agent team for documentation generation.
+
+The goal is: Generate comprehensive API reference documentation for our Express.js
+REST API. We have 25+ endpoints across 6 route groups (auth, users, orders,
+products, payments, webhooks) and no current API docs beyond inline comments.
+Frontend team needs accurate request/response examples to build against.
+
+Documentation format: Markdown files in docs/api/** with one file per route group
+Target audience: Frontend developers and third-party API consumers
+
+Spawn 4 teammates:
+
+1. "codebase-scanner" - An Explore agent to map the codebase and identify
+   documentation gaps. Model: haiku. Permission: plan (read-only).
+   Should produce:
+   - Map of all route files in src/api/routes/ with endpoint counts per group
+   - List of middleware applied to each route group (auth, rate-limit, validation)
+   - Request/response TypeScript types from src/types/api/**
+   - Any existing documentation (README, inline JSDoc, Swagger annotations)
+   - Suggested documentation priority: auth and orders first (most used by frontend)
+   Focus areas: src/api/routes/**, src/api/handlers/**, src/types/api/**, src/middleware/**
+
+2. "doc-writer-1" - A general-purpose agent to write API endpoint reference docs.
+   Model: inherit. Permission: acceptEdits.
+   Documentation area: API endpoint reference for all 6 route groups.
+   For each endpoint, document: HTTP method, path, auth requirements, request body
+   schema, query parameters, response schema (success + error), and a curl example.
+   Output to: docs/api/auth.md, docs/api/users.md, docs/api/orders.md,
+   docs/api/products.md, docs/api/payments.md, docs/api/webhooks.md
+
+3. "doc-writer-2" - A general-purpose agent to write guides and overview docs.
+   Model: inherit. Permission: acceptEdits.
+   Documentation area: Getting started guide, authentication guide, error handling
+   reference, and rate limiting documentation.
+   Output to: docs/guides/getting-started.md, docs/guides/authentication.md,
+   docs/guides/error-handling.md, docs/guides/rate-limiting.md, docs/api/index.md
+
+4. "reviewer" - A general-purpose agent to review all generated documentation.
+   Model: sonnet. Permission: plan (read-only).
+   Should verify:
+   - Technical accuracy: do curl examples use correct paths, methods, and headers?
+   - Completeness: are all 25+ endpoints documented? Are all query params listed?
+   - Consistency: same terminology (e.g., always "access token" not mixed with "auth token")
+   - Response schemas match the TypeScript types in src/types/api/**
+   Reports issues back to the relevant doc-writer for fixes.
+
+File ownership (NO overlaps):
+- codebase-scanner: read-only (scans entire codebase)
+- doc-writer-1: docs/api/auth.md, docs/api/users.md, docs/api/orders.md,
+  docs/api/products.md, docs/api/payments.md, docs/api/webhooks.md
+- doc-writer-2: docs/guides/**, docs/api/index.md
+- reviewer: read-only (reviews all docs and source code)
+
+Phase 1: codebase-scanner maps the codebase and identifies all endpoints and types.
+Phase 2: I will assign specific endpoint groups and guides based on scan results.
+Phase 3: doc-writer-1 and doc-writer-2 write in parallel with strict file ownership.
+Phase 4: reviewer checks all docs against the source code and flags issues.
+Writers fix any issues the reviewer finds. Max 2 review rounds.
+```
